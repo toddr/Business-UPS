@@ -23,12 +23,14 @@ require Exporter;
 #	Started 01/07/1998 Mark Solomon 
 #
 
-$VERSION = do { my @r = (q$Revision: 1.11 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r }; # must be all one line, for MakeMaker
+$VERSION = do { my @r = (q$Revision: 1.12 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r }; # must be all one line, for MakeMaker
 
 sub getUPS {
 
-    my ($product, $origin, $dest, $weight, $country , $length,
+    my ($product, $origin, $dest, $weight, $country , $rate_chart, $length,
 	$width, $height, $oversized, $cod) = @_;
+
+	$country ||= 'US';
     
     my $ups_cgi = 'http://www.ups.com/using/services/rave/qcostcgi.cgi';
     my $workString = "?";
@@ -44,6 +46,7 @@ sub getUPS {
     $workString .= "&27_height=" . $height if $height;
     $workString .= "&30_cod=" . $cod if $cod;
     $workString .= "&29_oversized=1" if $oversized;
+	$workString .= "&47_rate_chart=" . $rate_chart if $rate_chart;
     $workString .= "&30_cod=1" if $cod;
     $workString = "${ups_cgi}${workString}";
     
@@ -201,6 +204,7 @@ Call the subroutine with the following values:
 and optionally:
 
   5.  Country Code, (see country-codes.txt)
+  6.  Rate Chart (drop-off, pick-up, etc - see below)
   6.  Length,
   7.  Width,
   8.  Height,
@@ -266,6 +270,27 @@ Destination Zip Code as a number or string (NOT +4 Format)
 Weight
 
 Weight of the package in pounds
+
+=item 5
+
+Country
+
+Defaults to US
+
+=item 6
+
+Rate Chart
+
+How does the package get to UPS:
+
+Can be one of the following:
+
+   Regular Daily Pickup
+   On Call Air
+   One Time Pickup
+   Letter Center
+   Customer Counter
+
 
 =back
 
