@@ -23,7 +23,7 @@ require Exporter;
 #	Started 01/07/1998 Mark Solomon 
 #
 
-$VERSION = do { my @r = (q$Revision: 1.12 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r }; # must be all one line, for MakeMaker
+$VERSION = do { my @r = (q$Revision: 1.13 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r }; # must be all one line, for MakeMaker
 
 sub getUPS {
 
@@ -72,7 +72,7 @@ sub getUPS {
 
 sub UPStrack {
     my ($tracking_number) = shift;
-    my %retValue = {};		# Will hold return values
+    my %retValue = ();		# Will hold return values
     $tracking_number || Error("No number to track in UPStrack()");
 
     my $raw_data = get("http://wwwapps.ups.com/tracking/tracking.cgi?tracknum=$tracking_number") || Error("Cannot get data from UPS");

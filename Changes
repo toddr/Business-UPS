@@ -1,3 +1,7 @@
+Mon Feb 22 16:03:01 1999  msolomon  <msolomon@fido.seva.net>
+
+	* UPS.pm: Thanks to pudge@pobox.com, changed a {} to ()
+
 Tue Feb  9 20:16:07 1999  msolomon  <msolomon@fido.seva.net>
 
 	* UPS.pm: Added rate chart
