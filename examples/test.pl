@@ -12,7 +12,7 @@ print "UPS Version " . $Business::UPS::VERSION . "\n";
 print "From: 23606 to 11111 Weight 50 GNDCOM\n";
 print "Shipping is \$$shipping\n";
 print "UPS Zone is $ups_zone\n";
-exit(0);
+#exit(0);
 
 # How about a shipment from the US to Great Britain
 #
@@ -24,27 +24,4 @@ $error and die "ERROR: $error\n";
 print "Shipping is \$$shipping\n";
 print "UPS Zone is $ups_zone\n";
 
-# Track a package with a bad tracking number (Will produce error) 
-#
-%t = UPStrack("q211");
-if (! $t{error}) {
-	foreach $key (keys %t) {
-		print "KEY: $key = $t{$key}\n";
-	}
-}
-else {
-	print "ERROR: $t{error}\n";
-}
-
-# A good tracking number
-#
-print "\n\n";
-%t = UPStrack("1ZX29W290250802756");
-
-foreach (keys %t) {
-	next if /^Scanning/;
-	print "$_ = $t{$_}\n";
-}
-foreach (split "\n",$t{Scanning}) {
-	print "SCANNED: $_\n\n";
-}
+print "See the manpage for a working example of UPStrack\n";

@@ -1,7 +1,10 @@
-$Id: README,v 1.1 1999/01/22 17:07:36 msolomon Exp $
+$Id: README,v 2.1 2003/06/20 13:34:35 jwheeler Exp $
 
 Business::UPS - UPS Shipping Interface Module
 
+Justin Wheeler <upsmodule@datademons.com> 2003/06/10
+
+Originally written by:
 Mark Solomon <msolomon@seva.net> 12/20/1997
 http://www.seva.net/~msolomon/
 
@@ -40,10 +43,10 @@ Description:
 TO INSTALL:
 
   1. Unpack to Dist file:
-	gunzip < UPS-x.xx.tar.gz | tar xvf -
+	tar xzvf Business-UPS-x.xx.tar.gz
 
   2. Change to the dist dir and make the Makefile, make then install:
-	cd UPSShipping-x.xx
+	cd Business-UPS-x.xx
 	perl Makefile.PL
 	make
 	make install

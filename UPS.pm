@@ -1,6 +1,6 @@
 package Business::UPS;
 
-use LWP::Simple;
+use LWP::UserAgent;
 use strict;
 use vars qw($VERSION @ISA @EXPORT @EXPORT_OK);
 require 5.003;
@@ -8,30 +8,25 @@ require 5.003;
 require Exporter;
 
 @ISA = qw(Exporter AutoLoader);
-# Items to export into callers namespace by default. Note: do not export
-# names by default without a very good reason. Use EXPORT_OK instead.
-# Do not simply export all your public functions/methods/constants.
+
 @EXPORT = qw(
 	     getUPS
 	     UPStrack
 );
 
-
-# Preloaded methods go here.
-
+#	Copyright 2003 Justin Wheeler <upsmodule@datademons.com>
 #	Copyright 1998 Mark Solomon <msolomon@seva.net> (See GNU GPL)
 #	Started 01/07/1998 Mark Solomon 
-#
 
-$VERSION = do { my @r = (q$Revision: 1.13 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r }; # must be all one line, for MakeMaker
+$VERSION = do { my @r = (q$Revision: 2.0 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r }; # must be all one line, for MakeMaker
 
 sub getUPS {
 
     my ($product, $origin, $dest, $weight, $country , $rate_chart, $length,
 	$width, $height, $oversized, $cod) = @_;
 
-	$country ||= 'US';
-    
+    $country ||= 'US';
+
     my $ups_cgi = 'http://www.ups.com/using/services/rave/qcostcgi.cgi';
     my $workString = "?";
     $workString .= "accept_UPS_license_agreement=yes&";
@@ -44,13 +39,17 @@ sub getUPS {
     $workString .= "&25_length=" . $length if $length;
     $workString .= "&26_width=" . $width if $width;
     $workString .= "&27_height=" . $height if $height;
-    $workString .= "&30_cod=" . $cod if $cod;
     $workString .= "&29_oversized=1" if $oversized;
-	$workString .= "&47_rate_chart=" . $rate_chart if $rate_chart;
+    $workString .= "&47_rate_chart=" . $rate_chart if $rate_chart;
     $workString .= "&30_cod=1" if $cod;
     $workString = "${ups_cgi}${workString}";
+
+    my $lwp = LWP::UserAgent->new();
+    my $result = $lwp->get($workString);
+
+    Error("Failed fetching data.") unless $result->is_success;
     
-    my @ret = split( '%', get($workString) );
+    my @ret = split('%', $result->content);
     
     if (! $ret[5]) {
 	# Error
@@ -64,72 +63,137 @@ sub getUPS {
     }
 }
 
-
-#
-#	UPStrack sub added 2/27/1998
-#
-
-
 sub UPStrack {
-    my ($tracking_number) = shift;
-    my %retValue = ();		# Will hold return values
+    my $tracking_number = shift;
+    my %retValue;
+    
     $tracking_number || Error("No number to track in UPStrack()");
 
-    my $raw_data = get("http://wwwapps.ups.com/tracking/tracking.cgi?tracknum=$tracking_number") || Error("Cannot get data from UPS");
+    my $lwp = LWP::UserAgent->new();
+    my $result = $lwp->get("http://wwwapps.ups.com/tracking/tracking.cgi?tracknum=$tracking_number");
+    Error("Cannot get data from UPS") unless $result->is_success();
+
+    my $tracking_data = $result->content();
+    my %post_data;
+    my ($url, $data);
+
+    if (($url, $data) = $tracking_data =~ /<form action="?(.+?)"? method="?post"?>(.+)<\/form>/ims and $1 =~ /WebTracking\/processRequest/)
+    {
+    	while ($data =~ s/<input type="?hidden"? name="?(.+?)"? value="?(.+?)"?>//ims)
+	{
+		$post_data{$1} = $2;
+	}
+    }
+    else
+    {
+    	Error("Cannot parse output from UPS!");
+    }
+
+    my ($imagename) = $tracking_data =~ /<input type="?image"? .+? name="?(.+?)"?>/;
+
+    $post_data{"${imagename}.x"} = 0;
+    $post_data{"${imagename}.y"} = 0;
+    
+    my $result = $lwp->post($url, \%post_data, Referer => "http://wwwaaps.ups.com/tracking/tracking.cgi?tracknum=$tracking_number");
+
+    Error("Failed fetching tracking data from UPS!") unless $result->is_success;
+    
+    my $raw_data = $result->content();
+    
     $raw_data =~ tr/\r//d;
+    $raw_data =~ s/<.*?>//gims;
+    $raw_data =~ s/&nbsp;/ /gi;
+    $raw_data =~ s/^\s+//gms;
+    $raw_data =~ s/\s+$//gms;
+    $raw_data =~ s/\s{2,}/ /gms;
+    
+    my @raw_data = split(/\n/, $raw_data);
+    my %scanning;
+    my $progress;
+    my $count = 0;
+    my $reference;
 
-    my @raw_data = split "\n", $raw_data;
+    for (my $q = 0; $q < @raw_data; $q++)
+    {
+    	# flip thru the text in the page line-by-line
+        if ($progress == 1)
+	{
+	    # progress will == 1 when we've found the line that says 'package progress'
+	    # which means from here on in, we're tracking the package.
 
-    # These are the splitting keys
-    my $scan_sep = 'Scanning Information';
-    my $notice_sep = 'Notice';
-    my $error_key = 'Unable to track';
-    my $section;
-    my @scanning;
-    for (@raw_data) {
-	s/<.*?>/ /gi;	# Remove html tags
-	s/(?:&nbsp;|[\n\t])//gi;	# Remove '&nbsp' separators
-	s/^\s+//g;
-
-	next if /^$/;
-	last if /^Top\sof\sPage/;
-
-	if (/^Tracking\sResult/) {
-	    $section = 'RESULT';
-	}
-	elsif (/^$scan_sep/) {
-	    $section = 'SCANNING';
-	}
-	elsif (/^$notice_sep/) {
-	    $section = 'NOTICE';
-	}
-	elsif (/^($error_key\s.*?)\s{4}/) {
-	    my $error = $1;
-	    $error =~ s/\s+$/ /g;
-	    $retValue{error} = $error;
-	    return %retValue;
-	}
-	elsif ($section eq 'NOTICE') {
-	    $retValue{Notice} .= $_;
-	}
-	elsif ($section eq 'RESULT') {
-	    my ($key,$value) = /(.*?):(.*)/;
-	    $value =~ s/^\s+//g;
-	    $value =~ s/\s+$//g;
-	    $retValue{$key} = $value;
-	}
-	elsif ($section eq 'SCANNING') {
-	    if (/^\d/) {
-		push @scanning, $_;
+	    if ($raw_data[$q] =~ /Tracking results provided by UPS: (.+)/)
+	    {
+	    	$progress = 0;
+		$retValue{'Last Updated'} = $1 . ' ' . $raw_data[$q+1];
 	    }
-	    else {
-		$scanning[-1] .= " = $_";
+	    elsif ($raw_data[$q] =~ /\w+\s+\d+,\s+\d+/)
+	    {
+	        # would match jun 10, 2003
+	        $reference = $raw_data[$q];
 	    }
+	    elsif ($raw_data[$q] =~ /\d+:\d+\s+\w\.\w\./)
+	    {
+	    	# matches 2:10 a.m.
+	        $scanning{++$count}{'time'} = $raw_data[$q];
+		
+		$scanning{$count}{'date'} ||= $reference;
+	    }
+	    elsif ($raw_data[$q] =~ /,$/)
+	    {
+	        # if it ends in a comma, then it's an unfinished location e.g.:
+		# austin,
+		# tx,
+		# us
+		
+	    	$scanning{$count}{'location'} .= ' ' . $raw_data[$q];
+	    }
+	    else
+	    {
+	        # if all else fails, it's either the last line of the
+		# location, or it's the description.  we check that by
+		# seeing if the current location ends in a comma.
+		
+		next unless $scanning{$count}{'date'};
+
+	    	if ($scanning{$count}{'location'} =~ /,$/)
+		{
+			$scanning{$count}{'location'} .= ' ' . $raw_data[$q];
+		}
+		else
+		{
+			$scanning{$count}{'activity'} = $raw_data[$q];
+		}
+	    }
+	}
+	else
+	{
+	    # html tables make life easy. :)
+	    
+    	    $retValue{'Current Status'} = $raw_data[$q+1] if uc($raw_data[$q]) eq 'STATUS:';
+	    
+	    $retValue{'Shipped To'}     = $raw_data[$q+1] if uc($raw_data[$q]) eq 'SHIPPED TO:';
+	    $retValue{'Shipped To'}    .= ' ' . $raw_data[$q+2] if $raw_data[$q+1] =~ /,$/ and uc($raw_data[$q]) eq 'SHIPPED TO:';
+	    $retValue{'Shipped To'}    .= ' ' . $raw_data[$q+3] if $raw_data[$q+2] =~ /,$/ and uc($raw_data[$q]) eq 'SHIPPED TO:';
+	
+	    $retValue{'Delivered To'}	= $raw_data[$q+1] if uc($raw_data[$q]) eq 'DELIVERED TO:';
+	    $retValue{'Delivered To'}  .= ' ' . $raw_data[$q+2] if $raw_data[$q+1] =~ /,$/ and uc($raw_data[$q]) eq 'DELIVERED TO:';
+	    $retValue{'Delivered To'}  .= ' ' . $raw_data[$q+3] if $raw_data[$q+2] =~ /,$/ and uc($raw_data[$q]) eq 'DELIVERED TO:';
+    
+	    $retValue{'Shipped On'}     = $raw_data[$q+1] if uc($raw_data[$q]) eq 'SHIPPED OR BILLED ON:';
+	    $retValue{'Service Type'}   = $raw_data[$q+1] if uc($raw_data[$q]) eq 'SERVICE TYPE:';
+	    $retValue{'Weight'}         = $raw_data[$q+1] if uc($raw_data[$q]) eq 'WEIGHT:';
+	    $retValue{'Delivery Date'}  = $raw_data[$q+1] if uc($raw_data[$q]) eq 'DELIVERED ON:';
+	    $retValue{'Signed By'}	= $raw_data[$q+1] if uc($raw_data[$q]) eq 'SIGNED BY:';
+	    $retValue{'Location'}	= $raw_data[$q+1] if uc($raw_data[$q]) eq 'LOCATION:';
+
+	    $progress = 1 if uc($raw_data[$q]) eq 'PACKAGE PROGRESS:';
 	}
     }
 
-    $retValue{Scanning} = join "\n", @scanning;
-
+    $retValue{'Scanning'} = \%scanning;
+    $retValue{'Activity Count'} = $count;
+    $retValue{'Notice'} = "UPS authorizes you to use UPS tracking systems solely to track shipments tendered by or for you to UPS for delivery and for no other purpose. Any other use of UPS tracking systems and information is strictly prohibited.";
+    
     return %retValue;
 }
 
@@ -142,12 +206,9 @@ sub Error {
 
 END {}
 
-
-
 # Autoload methods go after =cut, and are processed by the autosplit program.
 
 1;
-# Below is the stub of documentation for your module. You better edit it!
 
 __END__
 
@@ -187,7 +248,7 @@ Perl 5.003 or higher
 
 =item *
 
-LWP Module
+LWP::UserAgent Module
 
 =back 4
 
@@ -300,7 +361,7 @@ The tracking number.
 
   use Business::UPS;
   %t = UPStrack("1ZX29W290250xxxxxx");
-  print "This package is $track{Current Status}\n";
+  print "This package is $track{'Current Status'}\n";
 
 =head1 RETURN VALUES
 
@@ -308,7 +369,7 @@ The tracking number.
 
 =item getUPS()
 
-	The raw http get() returns a list with the following values:
+	The raw LWP::UserAgent get returns a list with the following values:
 
 	  ##  Desc		Typical Value
 	  --  ---------------   -------------
@@ -323,41 +384,41 @@ The tracking number.
 	  8.  Sub-total Cost:	7.75
 	  9.  Addt'l Chrgs:	0.00
 	  10. Total Cost:	7.75
-	  11. ???:		-1
-
-	If anyone wants these available for some reason, let me know.
 
 =item UPStrack()
 	
 The hash that's returned is like the following:
 
-  'Delivered on' 	=> '1-22-1998 at 2:58 PM'
-  'Notice' 		=> 'UPS authorizes you to use UPS...'
-  'Received by'		=> 'DR PORCH'
-  'Addressed to'	=> 'NEWPORT NEWS, VA US'
-  'scan'		=>  HASH(0x146e0c) (more later...)
+  'Last Updated' 	=> 'Jun 10 2003 12:28 P.M.'
+  'Shipped On'		=> 'June 9, 2003'
+  'Signed By'		=> 'SIGNATURE'
+  'Shipped To'		=> 'LOS ANGELES,CA,US'
+  'Scanning'		=> HASH(0x146e0c) (more later...)
+  'Activity Count'	=> 5
+  'Weight'		=> '16.00 Lbs'
   'Current Status'	=> 'Delivered'
-  'Delivered to'	=> 'RESIDENTIAL'
-  'Sent on'		=> '1-20-1998'
-  'UPS Service'		=> '2ND DAY AIR'
-  'Tracking Number' 	=> '1ZX29W29025xxxxxx'
-  'Scanning'		=> (See next paragraph)
+  'Location'		=> 'RESIDENTIAL'
+  'Service Type'	=> 'STANDARD'
 
-Notice the key 'Scanning' is a newline (\n) delineated list of
-scanning locations.  Each line has two parts: 1. Time/Date of scan
-and 2. Type of scan.  In its scalar context, it looks like this:
+Notice the key 'Scanning' is a reference to a hash.
+(Which is a reference to another hash.)
 
-  1-22-19982:58 PM NEWPORT NEWS-OYSTER, VA US = DELIVERED
-  1-21-199811:37 PM RICHMOND, VA US = LOCATION SCAN
-  2:05 PM PHILA AIR HUB, PA US = LOCATION SCAN
-  1-20-199811:35 PM PHILA AIR HUB, PA US = LOCATION SCAN
+Scanning will contain a hash with keys 1 .. (Activity Count)
+Each of those values is another hash, holding a reference to
+an activity that's happened to an item.  (See example for
+details)
 
-...but a line or two of code can make it very usable like this:
+  %hash{Scanning}{1}{'location'} = 'MESQUITE,TX,US';
+  %hash{Scanning}{1}{'date'} = 'Jun 10, 2003';
+  %hash{Scanning}{1}{'time'} = '12:55 A.M.';
+  %hash{Scanning}{1}{'activity'} = 'ARRIVAL SCAN';
+  %hash{Scanning}{2}{'location'} = 'MESQUITE,TX,US';
+  .
+  .
+  .
+  %hash{Scanning}{x}{'activity'} = 'DELIVERED';
 
-  foreach $line (split "\n", $track{Scanning}) {
-    my ($location, $type) = split /=/, $line;
-    print "At $location, the shipment was $type\n";
-  }
+NOTE: The items generally go in reverse chronological order.
 
 =back
 
@@ -383,10 +444,10 @@ be called like this:
 
   #!/usr/local/bin/perl
 
-  use Business:UPS;
+  use Business::UPS;
 
   %t = UPStrack("z10192ixj29j39");
-  $t{error} and die "ERROR: $t{error};
+  $t{error} and die "ERROR: $t{error}";
 	
   print "This package is $t{'Current Status'}\n"; # 'Delivered' or 
 						  # 'In-transit'
@@ -395,22 +456,34 @@ be called like this:
     print "KEY: $key = $t{$key}\n";
   }
 
+  %activities = %{$t{'Scanning'}};
+
+  print "Package activity:\n";
+  for (my $num = $t{'Activity Count'}; $num > 0; $num--)
+  {
+  	print "-- ITEM $num --\n";
+	foreach $newkey (keys %{$activities{$num}})
+	{
+		print "$newkey: $activities{$num}{$newkey}\n";
+	}
+  }
 
 =back
 
 =head1 BUGS
 
-Let me know.
+Probably lots.  Contact me if you find them.
 
 =head1 AUTHOR
 
-Mark Solomon <msolomon@seva.net>
+Justin Wheeler <upsmodule@datademons.com>
 
-mailto:msolomon@seva.net
+mailto:upsmodule@datademons.com
 
-http://www.seva.net/~msolomon/
+This software was originally written by Mark Solomon <mailto:msoloman@seva.net> (http://www.seva.net/~msolomon/)
 
-NOTE: UPS is a registered trademark of United Parcel Service.
+NOTE: UPS is a registered trademark of United Parcel Service.  Due to UPS licensing, using this software is not
+be endorsed by UPS, and may not be allowed.  Use at your own risk.
 
 =head1 SEE ALSO
 

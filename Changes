@@ -1,3 +1,13 @@
+Fri Jun 20 09:27:24 2003  jwheeler  <upsmodule@datademons.com>
+
+	* Changed namespace to the original Business::UPS to make room for
+	Dan Browning's Business::Shipping modules.
+
+Tue Jun 10 13:28:37 2003  jwheeler  <upsmodule@datademons.com>
+
+	* Came across this module, was horribly outdated, rewrote it to work again.
+	* Renamed to Business::Shipping::UPS so as not to interfere with solomon's namespace.
+
 Mon Feb 22 16:03:01 1999  msolomon  <msolomon@fido.seva.net>
 
 	* UPS.pm: Thanks to pudge@pobox.com, changed a {} to ()
