@@ -94,11 +94,11 @@ sub UPStrack {
     $post_data{"${imagename}.x"} = 0;
     $post_data{"${imagename}.y"} = 0;
     
-    my $result = $lwp->post($url, \%post_data, Referer => "http://wwwaaps.ups.com/tracking/tracking.cgi?tracknum=$tracking_number");
+    my $result2 = $lwp->post($url, \%post_data, Referer => "http://wwwaaps.ups.com/tracking/tracking.cgi?tracknum=$tracking_number");
 
-    Error("Failed fetching tracking data from UPS!") unless $result->is_success;
+    Error("Failed fetching tracking data from UPS!") unless $result2->is_success;
     
-    my $raw_data = $result->content();
+    my $raw_data = $result2->content();
     
     $raw_data =~ tr/\r//d;
     $raw_data =~ s/<.*?>//gims;

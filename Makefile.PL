@@ -1,8 +1,13 @@
 use ExtUtils::MakeMaker;
-# See lib/ExtUtils/MakeMaker.pm for details of how to influence
-# the contents of the Makefile that is written.
+
 WriteMakefile(
     'NAME'	=> 'Business::UPS',
-    'VERSION_FROM' => 'UPS.pm', # finds $VERSION
+    'VERSION_FROM' => 'lib/Business/UPS.pm', # finds $VERSION
+    'PREREQ_PM' => {
+	'LWP::UserAgent' => 0,
+    },
+    'INSTALLDIRS' => 'site',
+    'EXE_FILES' => [],
+    'PL_FILES' => {},
     'dist' =>  {'COMPRESS'=>'gzip -9f', 'SUFFIX' => 'gz'}
 );

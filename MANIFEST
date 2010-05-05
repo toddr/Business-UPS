@@ -1,9 +1,9 @@
 Changes
 MANIFEST
 Makefile.PL
-UPS.pm
-test.pl
+lib/Business/UPS.pm
 README
 product-codes.txt
 country-codes.txt
 examples/test.pl
+t/00-load.t
