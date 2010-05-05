@@ -18,7 +18,7 @@ require Exporter;
 #	Copyright 1998 Mark Solomon <msolomon@seva.net> (See GNU GPL)
 #	Started 01/07/1998 Mark Solomon 
 
-$VERSION = do { my @r = (q$Revision: 2.0 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r }; # must be all one line, for MakeMaker
+$VERSION = '2.01';
 
 sub getUPS {
 
@@ -226,7 +226,7 @@ Business::UPS - A UPS Interface Module
   print "UPS Zone is $ups_zone\n";
 
   %track = UPStrack("z10192ixj29j39");
-  $track{error} and die "ERROR: $track{error};
+  $track{error} and die "ERROR: $track{error}";
 
   # 'Delivered' or 'In-transit'
   print "This package is $track{Current Status}\n"; 
