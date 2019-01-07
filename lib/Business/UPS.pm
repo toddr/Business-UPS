@@ -18,7 +18,7 @@ require Exporter;
 #	Copyright 1998 Mark Solomon <msolomon@seva.net> (See GNU GPL)
 #	Started 01/07/1998 Mark Solomon 
 
-$VERSION = '2.01';
+$VERSION = '2.02';
 
 sub getUPS {
 
@@ -27,7 +27,7 @@ sub getUPS {
 
     $country ||= 'US';
 
-    my $ups_cgi = 'http://www.ups.com/using/services/rave/qcostcgi.cgi';
+    my $ups_cgi = 'https://www.ups.com/using/services/rave/qcostcgi.cgi';
     my $workString = "?";
     $workString .= "accept_UPS_license_agreement=yes&";
     $workString .= "10_action=3&";
@@ -70,7 +70,7 @@ sub UPStrack {
     $tracking_number || Error("No number to track in UPStrack()");
 
     my $lwp = LWP::UserAgent->new();
-    my $result = $lwp->get("http://wwwapps.ups.com/tracking/tracking.cgi?tracknum=$tracking_number");
+    my $result = $lwp->get("https://wwwapps.ups.com/tracking/tracking.cgi?tracknum=$tracking_number");
     Error("Cannot get data from UPS") unless $result->is_success();
 
     my $tracking_data = $result->content();
@@ -94,7 +94,7 @@ sub UPStrack {
     $post_data{"${imagename}.x"} = 0;
     $post_data{"${imagename}.y"} = 0;
     
-    my $result2 = $lwp->post($url, \%post_data, Referer => "http://wwwaaps.ups.com/tracking/tracking.cgi?tracknum=$tracking_number");
+    my $result2 = $lwp->post($url, \%post_data, Referer => "https://wwwaaps.ups.com/tracking/tracking.cgi?tracknum=$tracking_number");
 
     Error("Failed fetching tracking data from UPS!") unless $result2->is_success;
     
