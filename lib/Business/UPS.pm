@@ -1,24 +1,23 @@
 package Business::UPS;
 
-use LWP::UserAgent;
 use strict;
-use vars qw($VERSION @ISA @EXPORT @EXPORT_OK);
-require 5.003;
+use warnings;
+
+use LWP::UserAgent;
+require 5.008;
 
 require Exporter;
 
-@ISA = qw(Exporter AutoLoader);
+our @ISA = qw(Exporter AutoLoader);
 
-@EXPORT = qw(
-	     getUPS
-	     UPStrack
-);
+our @EXPORT = qw/ getUPS UPStrack /;
+
 
 #	Copyright 2003 Justin Wheeler <upsmodule@datademons.com>
 #	Copyright 1998 Mark Solomon <msolomon@seva.net> (See GNU GPL)
-#	Started 01/07/1998 Mark Solomon 
+#	Started 01/07/1998 Mark Solomon
 
-$VERSION = '2.02';
+our $VERSION = '2.02';
 
 sub getUPS {
 
